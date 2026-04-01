@@ -1,0 +1,59 @@
+version: 2
+models:
+- name: week3_document_refinery_extractions
+  description: dbt schema tests for week3-document-refinery-extractions
+  columns:
+  - name: doc_id
+    tests:
+    - not_null
+    - not_null
+  - name: source_path
+    tests:
+    - not_null
+  - name: source_hash
+    tests:
+    - not_null
+  - name: extraction_model
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - claude-3-5-sonnet-20241022
+  - name: processing_time_ms
+    tests:
+    - not_null
+  - name: extracted_at
+    tests:
+    - not_null
+  - name: fact_fact_id
+    tests:
+    - not_null
+    - not_null
+  - name: fact_text
+    tests:
+    - not_null
+  - name: fact_entity_refs
+    tests:
+    - not_null
+  - name: fact_confidence
+    tests:
+    - not_null
+  - name: fact_page_ref
+    tests:
+    - not_null
+  - name: fact_source_excerpt
+    tests:
+    - not_null
+  - name: entity_entity_id
+    tests:
+    - not_null
+    - not_null
+  - name: entity_name
+    tests:
+    - not_null
+  - name: entity_type
+    tests:
+    - not_null
+  - name: entity_canonical_value
+    tests:
+    - not_null

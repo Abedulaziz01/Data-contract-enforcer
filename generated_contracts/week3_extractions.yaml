@@ -1,0 +1,149 @@
+kind: DataContract
+apiVersion: v3.0.0
+id: week3-document-refinery-extractions
+info:
+  title: Contract for week3-document-refinery-extractions
+  version: 1.0.0
+  owner: week7-team
+  description: Auto-generated contract from extractions.jsonl. Generated at 2026-04-01T18:05:45.086172+00:00.
+servers:
+  local:
+    type: local
+    path: outputs/week3/extractions.jsonl
+    format: jsonl
+terms:
+  usage: Internal inter-system data contract. Do not publish.
+  limitations: confidence must remain in 0.0-1.0 float range.
+schema:
+  doc_id:
+    type: string
+    required: true
+    format: uuid
+    pattern: ^[0-9a-f-]{36}$
+  source_path:
+    type: string
+    required: true
+  source_hash:
+    type: string
+    required: true
+    description: Column source_hash in week3-document-refinery-extractions.
+  extraction_model:
+    type: string
+    required: true
+    enum:
+    - claude-3-5-sonnet-20241022
+  processing_time_ms:
+    type: integer
+    required: true
+    minimum: 857.0
+    maximum: 2377.0
+  extracted_at:
+    type: string
+    required: true
+    format: date-time
+  fact_fact_id:
+    type: string
+    required: true
+    format: uuid
+    pattern: ^[0-9a-f-]{36}$
+  fact_text:
+    type: string
+    required: true
+  fact_entity_refs:
+    type: string
+    required: true
+    description: Column fact_entity_refs in week3-document-refinery-extractions.
+  fact_confidence:
+    type: number
+    required: true
+    minimum: 0.0
+    maximum: 1.0
+    description: Confidence score. Must remain 0.0-1.0 float. BREAKING if changed
+      to 0-100 integer scale.
+  fact_page_ref:
+    type: integer
+    required: true
+    minimum: 1.0
+    maximum: 4.0
+    description: Column fact_page_ref in week3-document-refinery-extractions.
+  fact_source_excerpt:
+    type: string
+    required: true
+    description: Column fact_source_excerpt in week3-document-refinery-extractions.
+  entity_entity_id:
+    type: string
+    required: true
+    format: uuid
+    pattern: ^[0-9a-f-]{36}$
+  entity_name:
+    type: string
+    required: true
+  entity_type:
+    type: string
+    required: true
+  entity_canonical_value:
+    type: string
+    required: true
+    description: Column entity_canonical_value in week3-document-refinery-extractions.
+llm_annotations:
+  source_hash:
+    description: Column source_hash in week3-document-refinery-extractions.
+    business_rule: No rule inferred (LLM annotation skipped).
+    relationships: None identified.
+  fact_entity_refs:
+    description: Column fact_entity_refs in week3-document-refinery-extractions.
+    business_rule: No rule inferred (LLM annotation skipped).
+    relationships: None identified.
+  fact_page_ref:
+    description: Column fact_page_ref in week3-document-refinery-extractions.
+    business_rule: No rule inferred (LLM annotation skipped).
+    relationships: None identified.
+  fact_source_excerpt:
+    description: Column fact_source_excerpt in week3-document-refinery-extractions.
+    business_rule: No rule inferred (LLM annotation skipped).
+    relationships: None identified.
+  entity_canonical_value:
+    description: Column entity_canonical_value in week3-document-refinery-extractions.
+    business_rule: No rule inferred (LLM annotation skipped).
+    relationships: None identified.
+quality:
+  type: SodaChecks
+  specification:
+    checks:
+    - row_count >= 1
+    - missing_count(doc_id) = 0
+lineage:
+  upstream: []
+  downstream:
+  - id: pipeline::week3-extraction-output
+    description: Downstream consumer via PRODUCES edge
+    fields_consumed:
+    - doc_id
+    - extracted_facts
+    breaking_if_changed:
+    - extracted_facts.confidence
+    - doc_id
+  - id: file::src/week4/cartographer.py
+    description: Downstream consumer via CONSUMES edge
+    fields_consumed:
+    - doc_id
+    - extracted_facts
+    breaking_if_changed:
+    - extracted_facts.confidence
+    - doc_id
+  - id: pipeline::week5-event-pipeline
+    description: Downstream consumer via CONSUMES edge
+    fields_consumed:
+    - doc_id
+    - extracted_facts
+    breaking_if_changed:
+    - extracted_facts.confidence
+    - doc_id
+  - id: service::validation-runner
+    description: Downstream consumer via CONSUMES edge
+    fields_consumed:
+    - doc_id
+    - extracted_facts
+    breaking_if_changed:
+    - extracted_facts.confidence
+    - doc_id
