@@ -1,0 +1,17 @@
+mkdir docker
+
+cat > docker/docker-compose.yml << 'EOF'
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: contracts
+      POSTGRES_USER: contracts
+      POSTGRES_PASSWORD: contracts
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contracts"]
+      interval: 5s
+      retries: 5
+EOF
