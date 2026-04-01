@@ -1,0 +1,20 @@
+cat > pyproject.toml << 'EOF'
+[project]
+name = "data-contract-enforcer"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "ydata-profiling",
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "jsonschema",
+    "pyyaml",
+    "openai",
+    "anthropic",
+    "langsmith",
+    "gitpython",
+    "soda-core",
+    "python-dotenv",
+]
+EOF
