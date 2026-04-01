@@ -1,0 +1,42 @@
+version: 2
+models:
+- name: week5_event_records
+  description: dbt schema tests for week5-event-records
+  columns:
+  - name: event_id
+    tests:
+    - not_null
+    - not_null
+  - name: event_type
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - ExtractionValidated
+        - DocumentProcessed
+        - ContractChecked
+  - name: aggregate_id
+    tests:
+    - not_null
+    - not_null
+  - name: aggregate_type
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - Document
+  - name: sequence_number
+    tests:
+    - not_null
+  - name: schema_version
+    tests:
+    - not_null
+    - accepted_values:
+        values:
+        - '1.0'
+  - name: occurred_at
+    tests:
+    - not_null
+  - name: recorded_at
+    tests:
+    - not_null

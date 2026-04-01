@@ -1,0 +1,80 @@
+kind: DataContract
+apiVersion: v3.0.0
+id: week5-event-records
+info:
+  title: Contract for week5-event-records
+  version: 1.0.0
+  owner: week7-team
+  description: Auto-generated contract from events.jsonl. Generated at 2026-04-01T18:27:59.703587+00:00.
+servers:
+  local:
+    type: local
+    path: outputs/week5/events.jsonl
+    format: jsonl
+terms:
+  usage: Internal inter-system data contract. Do not publish.
+  limitations: confidence must remain in 0.0-1.0 float range.
+schema:
+  event_id:
+    type: string
+    required: true
+    format: uuid
+    pattern: ^[0-9a-f-]{36}$
+  event_type:
+    type: string
+    required: true
+    enum:
+    - ExtractionValidated
+    - DocumentProcessed
+    - ContractChecked
+  aggregate_id:
+    type: string
+    required: true
+    format: uuid
+    pattern: ^[0-9a-f-]{36}$
+  aggregate_type:
+    type: string
+    required: true
+    enum:
+    - Document
+  sequence_number:
+    type: integer
+    required: true
+    minimum: 1.0
+    maximum: 1.0
+  schema_version:
+    type: string
+    required: true
+    enum:
+    - '1.0'
+    description: Column schema_version in week5-event-records.
+  occurred_at:
+    type: string
+    required: true
+    format: date-time
+  recorded_at:
+    type: string
+    required: true
+    format: date-time
+llm_annotations:
+  schema_version:
+    description: Column schema_version in week5-event-records.
+    business_rule: No rule inferred (LLM annotation skipped).
+    relationships: None identified.
+quality:
+  type: SodaChecks
+  specification:
+    checks:
+    - row_count >= 1
+    - row_count >= 1
+lineage:
+  upstream: []
+  downstream:
+  - id: pipeline::week5-event-pipeline
+    description: Downstream consumer via CONSUMES edge
+    fields_consumed:
+    - doc_id
+    - extracted_facts
+    breaking_if_changed:
+    - extracted_facts.confidence
+    - doc_id
