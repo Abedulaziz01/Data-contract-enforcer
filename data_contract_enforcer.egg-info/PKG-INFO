@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: data-contract-enforcer
+Version: 0.1.0
+Requires-Python: >=3.11
+Requires-Dist: ydata-profiling
+Requires-Dist: pandas
+Requires-Dist: numpy
+Requires-Dist: scikit-learn
+Requires-Dist: jsonschema
+Requires-Dist: pyyaml
+Requires-Dist: openai
+Requires-Dist: anthropic
+Requires-Dist: langsmith
+Requires-Dist: gitpython
+Requires-Dist: soda-core
+Requires-Dist: python-dotenv

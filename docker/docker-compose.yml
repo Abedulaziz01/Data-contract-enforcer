@@ -1,6 +1,3 @@
-mkdir docker
-
-cat > docker/docker-compose.yml << 'EOF'
 services:
   postgres:
     image: postgres:16
@@ -14,4 +11,3 @@ services:
       test: ["CMD-SHELL", "pg_isready -U contracts"]
       interval: 5s
       retries: 5
-EOF

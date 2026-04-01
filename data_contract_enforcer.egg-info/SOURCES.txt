@@ -1,0 +1,6 @@
+pyproject.toml
+data_contract_enforcer.egg-info/PKG-INFO
+data_contract_enforcer.egg-info/SOURCES.txt
+data_contract_enforcer.egg-info/dependency_links.txt
+data_contract_enforcer.egg-info/requires.txt
+data_contract_enforcer.egg-info/top_level.txt
