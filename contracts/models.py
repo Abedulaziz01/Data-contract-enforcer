@@ -1,4 +1,4 @@
-cat > contracts/models.py << 'EOF'
+
 """
 Shared dataclasses used across all contracts components.
 """
