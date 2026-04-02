@@ -94,4 +94,3 @@ def test_runner_never_crashes_on_empty_file():
     finally:
         os.unlink(tmp_data_path)
         os.unlink(tmp_out_path)
-EOF
