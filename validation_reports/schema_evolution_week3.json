@@ -1,0 +1,11 @@
+{
+  "report_id": "6b2174d6-07e7-49bd-a140-a15b27f727ae",
+  "contract_id": "week3-document-refinery-extractions",
+  "generated_at": "2026-04-03T12:15:30.098265+00:00",
+  "snapshot_old": "20260401_182722.yaml",
+  "snapshot_new": "20260402_115210.yaml",
+  "total_changes": 0,
+  "breaking_changes": 0,
+  "compatible_changes": 0,
+  "changes": []
+}
