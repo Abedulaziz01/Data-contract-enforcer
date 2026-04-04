@@ -1,14 +1,14 @@
 {
-  "run_id": "9472600d-4f47-422c-b89f-62dd3cf80a36",
-  "run_timestamp": "2026-04-04T07:41:29.280573+00:00",
+  "run_id": "e691f0ab-a5ac-4b66-81c3-47c65250419b",
+  "run_timestamp": "2026-04-04T13:22:41.807767+00:00",
   "mode": "all",
   "checks": {
     "embedding_drift": {
-      "status": "PASS",
-      "drift_score": 0.0,
+      "status": "FAIL",
+      "drift_score": 1.0128,
       "threshold": 0.15,
       "baseline_path": "schema_snapshots/embedding_baselines.npz",
-      "interpretation": "Stable \u2014 within acceptable drift bounds."
+      "interpretation": "Semantic content of text has shifted significantly."
     },
     "prompt_input_validation": {
       "status": "PASS",
@@ -28,8 +28,8 @@
       "warn_threshold": 0.02,
       "valid_verdicts": [
         "PASS",
-        "FAIL",
-        "WARN"
+        "WARN",
+        "FAIL"
       ]
     }
   }

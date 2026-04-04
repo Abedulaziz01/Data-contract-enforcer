@@ -9,7 +9,7 @@
   "warn_threshold": 0.02,
   "valid_verdicts": [
     "PASS",
-    "FAIL",
-    "WARN"
+    "WARN",
+    "FAIL"
   ]
 }
