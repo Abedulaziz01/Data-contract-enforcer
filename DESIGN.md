@@ -159,5 +159,3 @@ The implementation is optimized for the Week 7 project rubric:
 - it proves validation on clean and broken snapshots
 - it records machine-readable failures
 - it shows a lineage-driven attribution path
-
-That makes the system useful both as a submission artifact and as a base for the missing Phase 3 and Phase 4 modules.
