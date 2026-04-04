@@ -1,0 +1,49 @@
+{
+  "generated_at": "2026-04-04T13:39:25.916784+00:00",
+  "generated_by": "contracts/report_generator.py",
+  "period": "2026-03-28 to 2026-04-04",
+  "data_health_score": 70,
+  "health_narrative": "Score of 70/100. 1 critical issue(s) require immediate action.",
+  "violation_count": 2,
+  "top_violations": [
+    "The fact_confidence field in week3-document-refinery-extractions failed its range check. Expected max<=1.0, min>=0.0 but found max=99.0000, mean=86.3667. This affects 720 records.",
+    "The fact_confidence field in week3-document-refinery-extractions failed its statistical_drift check. Expected z<=3 (baseline_mean=0.8637) but found mean=86.3667, z=1131.74. This affects 0 records."
+  ],
+  "total_violations_by_severity": {
+    "CRITICAL": 1,
+    "HIGH": 1,
+    "MEDIUM": 0,
+    "LOW": 0
+  },
+  "schema_changes": [
+    {
+      "summary": "No schema changes detected between snapshots.",
+      "compatibility": "COMPATIBLE",
+      "action": "None required."
+    }
+  ],
+  "ai_risk_assessment": {
+    "embedding_drift": {
+      "status": "FAIL",
+      "score": 1.0128,
+      "narrative": "ALERT: Embedding drift score is 1.0128, exceeding the 0.15 threshold. The semantic content of extracted text has shifted significantly."
+    },
+    "prompt_input_validation": {
+      "status": "PASS",
+      "quarantine_rate": 0.0,
+      "quarantined_count": 0,
+      "total_records": 60
+    },
+    "llm_output_violation_rate": {
+      "status": "PASS",
+      "violation_rate": 0.0,
+      "trend": "unknown",
+      "narrative": "LLM output violation rate is 0.0 (trend: unknown). Rate is within acceptable bounds."
+    }
+  },
+  "recommendations": [
+    "[CRITICAL] Update src/week3/extractor.py to output 'fact_confidence' as float 0.0-1.0 per contract week3-document-refinery-extractions clause fact_confidence.range. This affects 720 records.",
+    "[MEDIUM] Add contract enforcement as a CI pipeline step. Run contracts/runner.py before every deployment of src/week3/extractor.py to catch scale violations early.",
+    "[MEDIUM] Re-run contracts/ai_extensions.py after every model update to track embedding drift. If drift_score exceeds 0.15, re-establish the baseline in schema_snapshots/embedding_baselines.npz and notify downstream consumers in week4-cartographer pipeline."
+  ]
+}
