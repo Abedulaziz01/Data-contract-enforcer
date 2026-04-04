@@ -179,7 +179,46 @@ def column_to_clause(profile: ColumnProfile) -> Dict[str, Any]:
         clause["minimum"] = profile.stats["min"]
         clause["maximum"] = profile.stats["max"]
 
+    if profile.stats:
+        mean_value = profile.stats.get("mean")
+        if mean_value is not None and (mean_value > 0.99 or mean_value < 0.01):
+            clause["warning"] = (
+                f"Suspicious distribution detected: mean={mean_value:.4f}. "
+                "Review producer logic and downstream assumptions."
+            )
+
     return clause
+
+
+def write_baselines(
+    df: pd.DataFrame,
+    baselines_path: str = "schema_snapshots/baselines.json",
+) -> Dict[str, Any]:
+    """
+    Persist numeric baselines from the generation stage so later validation
+    and demos have a stable statistical reference.
+    """
+    baselines_file = Path(baselines_path)
+    baselines_file.parent.mkdir(parents=True, exist_ok=True)
+
+    columns: Dict[str, Dict[str, float]] = {}
+    for col in df.select_dtypes(include="number").columns:
+        numeric = pd.to_numeric(df[col], errors="coerce").dropna()
+        if numeric.empty:
+            continue
+        columns[col] = {
+            "mean": float(numeric.mean()),
+            "stddev": float(numeric.std()),
+        }
+
+    baseline_payload = {
+        "written_at": datetime.now(timezone.utc).isoformat(),
+        "columns": columns,
+    }
+    with open(baselines_file, "w", encoding="utf-8") as f:
+        json.dump(baseline_payload, f, indent=2)
+
+    return baseline_payload
 
 
 # ---------------------------------------------------------------------------
@@ -409,6 +448,12 @@ def main():
     profiles: Dict[str, ColumnProfile] = {}
     for col in df.columns:
         profiles[col] = profile_column(df[col], col)
+
+    baselines = write_baselines(df)
+    print(
+        "      Baselines written: "
+        f"schema_snapshots/baselines.json ({len(baselines['columns'])} numeric columns)"
+    )
 
     print("[3/4] Building Bitol contract ...")
     contract = build_contract(args.contract_id, args.source, df, profiles)

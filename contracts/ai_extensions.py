@@ -38,6 +38,13 @@ def load_jsonl(path: str) -> List[Dict]:
     return records
 
 
+def append_violation_log(entry: Dict, path: str = "violation_log/violations.jsonl") -> None:
+    log_path = Path(path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
 def extract_fact_texts(records: List[Dict]) -> List[str]:
     """Pull extracted_facts[*].text from all records."""
     texts = []
@@ -271,6 +278,23 @@ def check_output_schema_violation_rate(
     metrics_file.parent.mkdir(parents=True, exist_ok=True)
     with open(metrics_file, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
+
+    if rate > warn_threshold:
+        append_violation_log(
+            {
+                "violation_id": str(uuid.uuid4()),
+                "check_id": "ai_extensions.llm_output_violation_rate",
+                "detected_at": datetime.now(timezone.utc).isoformat(),
+                "severity": "WARN",
+                "source": "contracts.ai_extensions",
+                "message": (
+                    f"LLM output schema violation rate {rate:.4f} exceeded "
+                    f"warning threshold {warn_threshold:.4f}."
+                ),
+                "metrics_path": metrics_path,
+                "trend": trend,
+            }
+        )
 
     print(f"      Total verdicts    : {total}")
     print(f"      Violations        : {violations}")

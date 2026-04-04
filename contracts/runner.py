@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import json
 import re
+import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -381,8 +382,39 @@ def load_baselines(baselines_path: str = "schema_snapshots/baselines.json") -> D
 # MAIN RUNNER
 # ---------------------------------------------------------------------------
 
+def apply_enforcement_mode(report: Dict[str, Any], mode: str) -> Dict[str, Any]:
+    """
+    Apply rubric-required enforcement behavior.
+    AUDIT  -> never blocks, only logs.
+    WARN   -> blocks on CRITICAL failures/errors.
+    ENFORCE -> blocks on CRITICAL and HIGH failures/errors.
+    """
+    blocking_severities: List[str] = []
+    if mode == "WARN":
+        blocking_severities = ["CRITICAL"]
+    elif mode == "ENFORCE":
+        blocking_severities = ["CRITICAL", "HIGH"]
+
+    blocking_results = [
+        result
+        for result in report["results"]
+        if result["status"] in ("FAIL", "ERROR")
+        and result.get("severity") in blocking_severities
+    ]
+
+    report["mode"] = mode
+    report["blocking_results"] = [result["check_id"] for result in blocking_results]
+    report["blocked"] = bool(blocking_results)
+    report["enforcement_narrative"] = {
+        "AUDIT": "Audit mode records findings but never blocks execution.",
+        "WARN": "Warn mode blocks only on CRITICAL failures or errors.",
+        "ENFORCE": "Enforce mode blocks on CRITICAL and HIGH failures or errors.",
+    }[mode]
+    return report
+
+
 def run_validation(contract_path: str, data_path: str,
-                   output_path: str) -> Dict:
+                   output_path: str, mode: str = "AUDIT") -> Dict:
     # load contract
     with open(contract_path) as f:
         contract = yaml.safe_load(f)
@@ -458,6 +490,8 @@ def run_validation(contract_path: str, data_path: str,
         "results":       results,
     }
 
+    report = apply_enforcement_mode(report, mode)
+
     # write output
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
@@ -474,14 +508,21 @@ def main():
                         help="Path to data JSONL file")
     parser.add_argument("--output",   required=True,
                         help="Path to write validation report JSON")
+    parser.add_argument(
+        "--mode",
+        default="AUDIT",
+        choices=["AUDIT", "WARN", "ENFORCE"],
+        help="Enforcement behavior: AUDIT logs only, WARN blocks on CRITICAL, ENFORCE blocks on CRITICAL and HIGH.",
+    )
     args = parser.parse_args()
 
     print(f"Running validation...")
     print(f"  Contract : {args.contract}")
     print(f"  Data     : {args.data}")
     print(f"  Output   : {args.output}")
+    print(f"  Mode     : {args.mode}")
 
-    report = run_validation(args.contract, args.data, args.output)
+    report = run_validation(args.contract, args.data, args.output, mode=args.mode)
 
     print(f"\nResults:")
     print(f"  Total checks : {report['total_checks']}")
@@ -489,6 +530,7 @@ def main():
     print(f"  Failed       : {report['failed']}")
     print(f"  Warned       : {report['warned']}")
     print(f"  Errored      : {report['errored']}")
+    print(f"  Blocked      : {report['blocked']}")
     print(f"\nReport written to: {args.output}")
 
     # print any failures clearly
@@ -500,6 +542,10 @@ def main():
             print(f"  [{r['severity']}] {r['check_id']}: {r['message']}")
     else:
         print("\nAll checks passed.")
+
+    if report["blocked"]:
+        print("\nExecution blocked by enforcement mode.")
+        sys.exit(2)
 
 
 if __name__ == "__main__":

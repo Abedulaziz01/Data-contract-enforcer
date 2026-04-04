@@ -22,26 +22,28 @@ def classify_change(
     field_name: str,
     old_clause: Optional[Dict],
     new_clause: Optional[Dict],
-) -> Tuple[str, str]:
+) -> Tuple[str, str, str]:
     """
     Classify a schema change.
-    Returns (compatibility, reason) where compatibility is
-    'BREAKING' or 'COMPATIBLE'.
+    Returns (compatibility, severity, reason).
     """
     if old_clause is None and new_clause is not None:
         if new_clause.get("required", False):
             return (
                 "BREAKING",
+                "HIGH",
                 f"Add non-nullable column '{field_name}' - coordinate with all producers",
             )
         return (
             "COMPATIBLE",
+            "LOW",
             f"Add nullable column '{field_name}' - downstream consumers can ignore",
         )
 
     if old_clause is not None and new_clause is None:
         return (
             "BREAKING",
+            "HIGH",
             f"Remove column '{field_name}' - 2-sprint deprecation period mandatory",
         )
 
@@ -56,10 +58,25 @@ def classify_change(
         if (old_type, new_type) in widening_pairs:
             return (
                 "COMPATIBLE",
+                "LOW",
                 f"Type widening {old_type} -> {new_type} - validate no precision loss",
+            )
+        if (
+            old_type == "number"
+            and new_type == "integer"
+            and old_clause.get("minimum") == 0.0
+            and old_clause.get("maximum") == 1.0
+            and new_clause.get("minimum") == 0
+            and new_clause.get("maximum") == 100
+        ):
+            return (
+                "BREAKING",
+                "CRITICAL",
+                "Narrow type and scale change number 0.0-1.0 -> integer 0-100 - immediate rollback recommended",
             )
         return (
             "BREAKING",
+            "HIGH",
             f"Type change {old_type} -> {new_type} - migration plan + rollback mandatory",
         )
 
@@ -69,10 +86,10 @@ def classify_change(
     new_min = new_clause.get("minimum")
 
     if old_max != new_max and old_max is not None:
-        return ("BREAKING", f"Range change: maximum {old_max} -> {new_max}")
+        return ("BREAKING", "CRITICAL", f"Range change: maximum {old_max} -> {new_max}")
 
     if old_min != new_min and old_min is not None:
-        return ("BREAKING", f"Range change: minimum {old_min} -> {new_min}")
+        return ("BREAKING", "CRITICAL", f"Range change: minimum {old_min} -> {new_min}")
 
     old_enum = set(old_clause.get("enum", []))
     new_enum = set(new_clause.get("enum", []))
@@ -82,11 +99,13 @@ def classify_change(
         if removed:
             return (
                 "BREAKING",
+                "HIGH",
                 f"Enum values removed: {sorted(removed)} - treat as breaking change",
             )
         if added:
             return (
                 "COMPATIBLE",
+                "LOW",
                 f"Enum values added: {sorted(added)} - notify all consumers",
             )
 
@@ -95,19 +114,21 @@ def classify_change(
     if not old_req and new_req:
         return (
             "BREAKING",
+            "HIGH",
             f"Column '{field_name}' changed to required - coordinate with all producers",
         )
 
     if old_clause.get("format") != new_clause.get("format"):
         return (
             "BREAKING",
+            "HIGH",
             f"Format changed: {old_clause.get('format')} -> {new_clause.get('format')}",
         )
 
-    return ("COMPATIBLE", "No material change")
+    return ("COMPATIBLE", "LOW", "No material change")
 
 
-def load_snapshots(contract_id: str) -> List[Dict]:
+def load_snapshots(contract_id: str, since: Optional[str] = None) -> List[Dict]:
     """
     Load all YAML snapshots for a contract, sorted by filename.
     """
@@ -126,10 +147,51 @@ def load_snapshots(contract_id: str) -> List[Dict]:
 
     snapshots = []
     for yaml_file in yaml_files:
+        if since and yaml_file.stem < since:
+            continue
         with open(yaml_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         snapshots.append({"filename": yaml_file.name, "schema": data})
+    if len(snapshots) < 2:
+        print(
+            "Need at least 2 snapshots after applying filters. "
+            "Adjust --since or generate another snapshot."
+        )
+        sys.exit(1)
     return snapshots
+
+
+def detect_rename_candidates(old_schema: Dict, new_schema: Dict) -> List[Dict]:
+    """
+    Heuristic rename detection: pair removed and added fields with matching
+    core clause shape so the diff can explain a rename explicitly.
+    """
+    removed_fields = [field for field in old_schema.keys() if field not in new_schema]
+    added_fields = [field for field in new_schema.keys() if field not in old_schema]
+    candidates = []
+
+    for old_field in removed_fields:
+        old_clause = old_schema[old_field]
+        for new_field in added_fields:
+            new_clause = new_schema[new_field]
+            if (
+                old_clause.get("type") == new_clause.get("type")
+                and old_clause.get("required") == new_clause.get("required")
+                and old_clause.get("format") == new_clause.get("format")
+            ):
+                candidates.append(
+                    {
+                        "field": f"{old_field} -> {new_field}",
+                        "compatibility": "BREAKING",
+                        "severity": "HIGH",
+                        "reason": f"Rename field '{old_field}' -> '{new_field}' - downstream consumers must update references",
+                        "old_clause": old_clause,
+                        "new_clause": new_clause,
+                    }
+                )
+                break
+
+    return candidates
 
 
 def build_migration_checklist(field_name: str, reason: str, contract: Dict) -> List[str]:
@@ -223,11 +285,16 @@ def generate_migration_impact(
 def main():
     parser = argparse.ArgumentParser(description="SchemaEvolutionAnalyzer")
     parser.add_argument("--contract-id", required=True, help="Contract ID to analyze")
+    parser.add_argument(
+        "--since",
+        default=None,
+        help="Only consider snapshots whose timestamped filename is >= this value (e.g. 20260401_000000)",
+    )
     parser.add_argument("--output", required=True, help="Path to write schema_evolution.json")
     args = parser.parse_args()
 
     print(f"Loading snapshots for: {args.contract_id}")
-    snapshots = load_snapshots(args.contract_id)
+    snapshots = load_snapshots(args.contract_id, since=args.since)
     print(f"Found {len(snapshots)} snapshots - diffing last two.")
 
     old_snapshot = snapshots[-2]
@@ -248,8 +315,12 @@ def main():
 
     all_fields = set(old_schema.keys()) | set(new_schema.keys())
 
-    changes = []
+    changes = detect_rename_candidates(old_schema, new_schema)
     breaking_changes = []
+
+    for candidate in changes:
+        if candidate["compatibility"] == "BREAKING":
+            breaking_changes.append(candidate)
 
     for field in sorted(all_fields):
         old_clause = old_schema.get(field)
@@ -258,10 +329,11 @@ def main():
         if old_clause == new_clause:
             continue
 
-        compatibility, reason = classify_change(field, old_clause, new_clause)
+        compatibility, severity, reason = classify_change(field, old_clause, new_clause)
         change_record = {
             "field": field,
             "compatibility": compatibility,
+            "severity": severity,
             "reason": reason,
             "old_clause": old_clause,
             "new_clause": new_clause,

@@ -26,6 +26,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def load_registry(registry_path: str = "contract_registry/subscriptions.yaml") -> List[Dict]:
+    path = Path(registry_path)
+    if not path.exists():
+        return []
+    with open(path, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    if isinstance(data, dict):
+        return data.get("subscriptions", [])
+    if isinstance(data, list):
+        return data
+    return []
+
+
+def get_registry_subscribers(contract_id: str, registry_entries: List[Dict]) -> List[Dict]:
+    return [entry for entry in registry_entries if entry.get("contract_id") == contract_id]
+
+
 # ---------------------------------------------------------------------------
 # STEP 1 — Lineage traversal
 # ---------------------------------------------------------------------------
@@ -59,6 +76,7 @@ def find_upstream_files(failing_column: str,
     visited = set()
     queue   = deque(seeds)
     file_nodes = []
+    distances: Dict[str, int] = {seed: 0 for seed in seeds}
 
     while queue:
         current = queue.popleft()
@@ -68,16 +86,21 @@ def find_upstream_files(failing_column: str,
 
         node = nodes.get(current, {})
         if node.get("type") == "FILE":
-            file_nodes.append(node)
+            file_nodes.append({**node, "lineage_hops": distances.get(current, 1)})
 
         # traverse upstream
         for upstream_id in upstream_map.get(current, []):
             if upstream_id not in visited:
+                distances[upstream_id] = distances.get(current, 0) + 1
                 queue.append(upstream_id)
 
     # fallback — if nothing found, return all FILE nodes
     if not file_nodes:
-        file_nodes = [n for n in nodes.values() if n.get("type") == "FILE"]
+        file_nodes = [
+            {**n, "lineage_hops": 1}
+            for n in nodes.values()
+            if n.get("type") == "FILE"
+        ]
 
     return file_nodes
 
@@ -198,24 +221,41 @@ def score_candidates(commits: List[Dict],
 # STEP 4 — Blast radius from contract lineage
 # ---------------------------------------------------------------------------
 
-def compute_blast_radius(contract: Dict,
-                         records_failing: int) -> Dict:
+def compute_blast_radius(
+    contract: Dict,
+    records_failing: int,
+    registry_subscribers: List[Dict],
+    lineage_distance: int,
+) -> Dict:
     """
     Blast radius comes from contract.lineage.downstream[]
     NOT from re-traversing the lineage graph.
     """
     downstream = contract.get("lineage", {}).get("downstream", [])
     affected_nodes = [d.get("id", "") for d in downstream]
+    registry_nodes = [entry.get("subscriber_id", "") for entry in registry_subscribers]
+    combined_nodes = list(dict.fromkeys([*registry_nodes, *affected_nodes]))
     affected_pipelines = [
-        d.get("id", "") for d in downstream
-        if "pipeline" in d.get("id", "").lower()
-        or "cartographer" in d.get("id", "").lower()
-        or "week4" in d.get("id", "").lower()
+        node_id for node_id in combined_nodes
+        if "pipeline" in node_id.lower()
+        or "cartographer" in node_id.lower()
+        or "week4" in node_id.lower()
+    ]
+    subscriber_details = [
+        {
+            "subscriber_id": entry.get("subscriber_id", "unknown"),
+            "validation_mode": entry.get("validation_mode", "unknown"),
+            "contact": entry.get("contact", "unknown"),
+            "contamination_depth": 1 + lineage_distance,
+        }
+        for entry in registry_subscribers
     ]
     return {
-        "affected_nodes":     affected_nodes,
+        "affected_nodes":     combined_nodes,
         "affected_pipelines": affected_pipelines,
         "estimated_records":  records_failing,
+        "subscriber_details": subscriber_details,
+        "contamination_depth": 1 + lineage_distance,
     }
 
 
@@ -233,6 +273,8 @@ def main():
                         help="Path to contract YAML")
     parser.add_argument("--output",    required=True,
                         help="Path to violations.jsonl output")
+    parser.add_argument("--registry",  default="contract_registry/subscriptions.yaml",
+                        help="Path to authored subscription registry YAML")
     args = parser.parse_args()
 
     # load inputs
@@ -245,6 +287,12 @@ def main():
 
     with open(args.contract) as f:
         contract = yaml.safe_load(f)
+
+    registry_entries = load_registry(args.registry)
+    registry_subscribers = get_registry_subscribers(
+        contract.get("id", "unknown"),
+        registry_entries,
+    )
 
     # repo roots from .env
     week3_repo = os.getenv("WEEK3_REPO_PATH", os.getcwd())
@@ -269,7 +317,6 @@ def main():
         print(f"\nAttributing: {failure['check_id']}")
 
         # STEP 1 — lineage traversal
-        col_name   = failure.get("column_name", "")
         check_id   = failure.get("check_id", "")
         file_nodes = find_upstream_files(check_id, lineage_snapshot)
         print(f"  Upstream FILE nodes found: {len(file_nodes)}")
@@ -280,6 +327,7 @@ def main():
             meta      = node.get("metadata", {})
             file_path = meta.get("path", node.get("node_id", ""))
             repo_root = week3_repo
+            lineage_hops = int(node.get("lineage_hops", 1))
 
             print(f"  Running git log on: {file_path} (cwd={repo_root})")
             commits = get_recent_commits(file_path, repo_root, days=14)
@@ -287,17 +335,27 @@ def main():
 
             for c in commits:
                 c["file_path"] = file_path
+                c["lineage_hops"] = lineage_hops
             all_commits.extend(commits)
 
         # STEP 3 — score candidates
         violation_ts   = report.get("run_timestamp",
                                     datetime.now(timezone.utc).isoformat())
+        lineage_distance = min(
+            [int(node.get("lineage_hops", 1)) for node in file_nodes],
+            default=1,
+        )
         scored         = score_candidates(all_commits, violation_ts,
-                                          lineage_distance=1)
+                                          lineage_distance=lineage_distance)
 
         # STEP 4 — blast radius + write
         records_failing = failure.get("records_failing", 0)
-        blast_radius    = compute_blast_radius(contract, records_failing)
+        blast_radius    = compute_blast_radius(
+            contract,
+            records_failing,
+            registry_subscribers,
+            lineage_distance,
+        )
 
         violation_record = {
             "violation_id": str(uuid.uuid4()),

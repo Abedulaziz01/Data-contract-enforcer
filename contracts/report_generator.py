@@ -23,20 +23,20 @@ def compute_health_score(validation_reports: List[Dict]) -> int:
     CRITICAL=20, HIGH=10, MEDIUM=5, LOW=1. Clamp to 0-100.
     Never hardcoded — always computed from real report files.
     """
-    deductions = {
-        "CRITICAL": 20,
-        "HIGH":     10,
-        "MEDIUM":   5,
-        "LOW":      1,
-    }
-    score = 100
-    for report in validation_reports:
-        for result in report.get("results", []):
-            if result.get("status") in ("FAIL", "ERROR"):
-                severity  = result.get("severity", "LOW")
-                deduction = deductions.get(severity, 1)
-                score    -= deduction
-    return max(0, min(100, score))
+    total_checks = sum(report.get("total_checks", 0) for report in validation_reports)
+    total_passed = sum(report.get("passed", 0) for report in validation_reports)
+    critical_failures = sum(
+        1
+        for report in validation_reports
+        for result in report.get("results", [])
+        if result.get("status") in ("FAIL", "ERROR")
+        and result.get("severity") == "CRITICAL"
+    )
+    if total_checks == 0:
+        return 0
+    score = (total_passed / total_checks) * 100
+    score -= critical_failures * 20
+    return max(0, min(100, round(score)))
 
 
 # ---------------------------------------------------------------------------

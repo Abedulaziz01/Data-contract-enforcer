@@ -1,0 +1,87 @@
+subscriptions:
+  - contract_id: week3-document-refinery-extractions
+    subscriber_id: pipeline::week3-extraction-output
+    fields_consumed:
+      - doc_id
+      - extracted_facts
+      - extracted_facts.confidence
+    breaking_fields:
+      - field: extracted_facts.confidence
+        reason: Confidence scale changes break extraction output guarantees.
+      - field: doc_id
+        reason: Missing identifiers break reconciliation across downstream systems.
+    validation_mode: ENFORCE
+    registered_at: "2026-04-04T10:00:00+00:00"
+    contact: week3-extraction@internal.example
+  - contract_id: week3-document-refinery-extractions
+    subscriber_id: pipeline::week4-cartographer
+    fields_consumed:
+      - doc_id
+      - extracted_facts
+      - extracted_facts.confidence
+    breaking_fields:
+      - field: extracted_facts.confidence
+        reason: Confidence scale changes break enrichment and downstream scoring.
+      - field: doc_id
+        reason: Missing identifiers break joins and traceability.
+    validation_mode: ENFORCE
+    registered_at: "2026-04-04T10:00:00+00:00"
+    contact: week4-cartographer@internal.example
+  - contract_id: week3-document-refinery-extractions
+    subscriber_id: pipeline::week5-event-pipeline
+    fields_consumed:
+      - doc_id
+      - extracted_facts
+      - extracted_facts.confidence
+    breaking_fields:
+      - field: extracted_facts.confidence
+        reason: Event materialization assumes confidence remains normalized.
+    validation_mode: WARN
+    registered_at: "2026-04-04T10:00:00+00:00"
+    contact: week5-events@internal.example
+  - contract_id: week3-document-refinery-extractions
+    subscriber_id: service::validation-runner
+    fields_consumed:
+      - doc_id
+      - extracted_facts.confidence
+    breaking_fields:
+      - field: extracted_facts.confidence
+        reason: Range and drift checks are defined against the normalized 0.0-1.0 contract.
+    validation_mode: ENFORCE
+    registered_at: "2026-04-04T10:00:00+00:00"
+    contact: enforcer-service@internal.example
+  - contract_id: week4-lineage-snapshots
+    subscriber_id: pipeline::week7-enforcer
+    fields_consumed:
+      - nodes
+      - edges
+    breaking_fields:
+      - field: edges
+        reason: Missing lineage edges breaks attribution traversal and blast radius coverage.
+    validation_mode: WARN
+    registered_at: "2026-04-04T10:00:00+00:00"
+    contact: week7-enforcer@internal.example
+  - contract_id: week5-event-records
+    subscriber_id: pipeline::week7-enforcer
+    fields_consumed:
+      - event_type
+      - event_timestamp
+      - payload
+    breaking_fields:
+      - field: event_timestamp
+        reason: Invalid timestamps break time-based monitoring and reporting.
+    validation_mode: WARN
+    registered_at: "2026-04-04T10:00:00+00:00"
+    contact: week7-enforcer@internal.example
+  - contract_id: langsmith-runs
+    subscriber_id: pipeline::week7-enforcer
+    fields_consumed:
+      - run_id
+      - inputs
+      - outputs
+    breaking_fields:
+      - field: outputs
+        reason: Missing outputs breaks AI risk analysis and trace diagnostics.
+    validation_mode: AUDIT
+    registered_at: "2026-04-04T10:00:00+00:00"
+    contact: week7-enforcer@internal.example
