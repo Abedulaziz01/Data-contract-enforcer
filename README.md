@@ -1,57 +1,84 @@
 # Data Contract Enforcer
 
-Week 7 implementation of a data contract enforcement workflow for synthetic Week 1-5 platform outputs. The project currently covers contract generation, validation, injected violation detection, lineage-based attribution, and baseline tests for the implemented phases.
+Data Contract Enforcer is a practical reliability project for detecting, explaining, and reporting data breakages across a multi-stage pipeline. It generates machine-readable contracts from JSONL datasets, validates clean and broken runs against those contracts, attributes failures through lineage, evaluates schema evolution, adds AI-specific quality checks, and summarizes everything in a stakeholder-friendly report and Streamlit dashboard.
 
-## What This Repo Does
+## Why This Project Exists
 
-- Generates Bitol-style contract YAML from JSONL datasets.
-- Generates parallel dbt-style schema test YAML.
-- Validates datasets against generated contracts.
-- Writes statistical baselines for numeric drift detection.
-- Injects the canonical Week 3 confidence-scale violation.
-- Attributes detected failures using the Week 4 lineage snapshot and git history when available.
+Modern data and AI pipelines often fail silently. A job can still run, dashboards can still refresh, and models can still produce output even when the underlying data has changed in a dangerous way.
+
+This project turns those hidden assumptions into explicit checks:
+
+- Contract generation defines what valid data looks like.
+- Validation verifies whether current data still matches that contract.
+- Drift baselines capture what normal numeric behavior looks like.
+- Attribution helps trace failures to likely upstream sources.
+- Schema evolution compares snapshots to classify safe vs. breaking change.
+- AI extensions add checks for prompt inputs, structured outputs, and embedding drift.
+- Final reporting translates technical findings into clear operational guidance.
+
+## Core Capabilities
+
+- Generate Bitol-style data contracts from real JSONL data.
+- Generate dbt-style companion YAML for downstream testing workflows.
+- Validate datasets against required, pattern, enum, range, and drift checks.
+- Establish numeric baselines for later comparison.
+- Inject a canonical Week 3 confidence-scale violation for testing.
+- Attribute failures using lineage and git history where available.
+- Compare schema snapshots over time.
+- Run AI-focused checks on prompt inputs, LLM outputs, and semantic drift.
+- Produce a final enforcer report with health score, top violations, and recommendations.
+- Present the full workflow in a Streamlit demo app.
 
 ## Repository Layout
 
 ```text
 contracts/
   __init__.py
-  models.py
-  generator.py
-  runner.py
+  ai_extensions.py
   attributor.py
+  generator.py
+  models.py
+  report_generator.py
+  runner.py
+  schema_analyzer.py
 generated_contracts/
-validation_reports/
-violation_log/
-schema_snapshots/
+enforcer_report/
 outputs/
+  traces/
   week1/
   week2/
   week3/
   week4/
   week5/
-  traces/
+schema_snapshots/
 tests/
+validation_reports/
+violation_log/
+app.py
 create_violation.py
 README.md
+DESIGN.md
 ```
 
-## Prerequisites
+## Tech Stack
 
-- Python 3.11+ recommended
-- PowerShell or a compatible terminal
-- A virtual environment
+- Python 3.11+
+- Pandas and NumPy
+- JSON Schema and YAML tooling
+- GitPython
+- OpenAI-compatible clients for embeddings
+- Streamlit for the demo UI
 
-## Environment Setup
+## Setup
 
-Create and activate a local virtual environment:
+Create and activate a virtual environment:
 
 ```powershell
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-Install the project in editable mode:
+Install the project:
 
 ```powershell
 python -m ensurepip --upgrade
@@ -59,15 +86,15 @@ python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
-If you want to run tests:
+Run tests if needed:
 
 ```powershell
-python -m pip install pytest
+python -m pytest -v
 ```
 
-## Input Data
+## Included Data
 
-The repo already contains synthetic input data in canonical project folders:
+The repository already includes synthetic project datasets:
 
 - [`outputs/week1/intent_records.jsonl`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/outputs/week1/intent_records.jsonl)
 - [`outputs/week2/verdicts.jsonl`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/outputs/week2/verdicts.jsonl)
@@ -76,7 +103,7 @@ The repo already contains synthetic input data in canonical project folders:
 - [`outputs/week5/events.jsonl`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/outputs/week5/events.jsonl)
 - [`outputs/traces/runs.jsonl`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/outputs/traces/runs.jsonl)
 
-## How To Run
+## End-to-End Workflow
 
 ### 1. Generate the Week 3 contract
 
@@ -84,147 +111,151 @@ The repo already contains synthetic input data in canonical project folders:
 python -m contracts.generator --source outputs/week3/extractions.jsonl --contract-id week3-document-refinery-extractions --lineage outputs/week4/lineage_snapshots.jsonl --output generated_contracts/
 ```
 
-Expected outputs:
+Key output:
 
 - [`generated_contracts/week3_extractions.yaml`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/generated_contracts/week3_extractions.yaml)
-- [`generated_contracts/week3_extractions_dbt.yml`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/generated_contracts/week3_extractions_dbt.yml)
-- a timestamped snapshot under [`schema_snapshots/week3-document-refinery-extractions`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/schema_snapshots/week3-document-refinery-extractions)
 
-### 2. Generate the Week 5 contract
+Important rule:
 
-```powershell
-python -m contracts.generator --source outputs/week5/events.jsonl --contract-id week5-event-records --lineage outputs/week4/lineage_snapshots.jsonl --output generated_contracts/
-```
+- `fact_confidence` must remain a numeric value between `0.0` and `1.0`
 
-Expected outputs:
-
-- [`generated_contracts/week5_records.yaml`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/generated_contracts/week5_records.yaml)
-- [`generated_contracts/week5_records_dbt.yml`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/generated_contracts/week5_records_dbt.yml)
-- a timestamped snapshot under [`schema_snapshots/week5-event-records`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/schema_snapshots/week5-event-records)
-
-### 3. Run validation on clean Week 3 data
+### 2. Validate clean Week 3 data
 
 ```powershell
-python -m contracts.runner --contract generated_contracts/week3_extractions.yaml --data outputs/week3/extractions.jsonl --output validation_reports/thursday_baseline.json
+python -m contracts.runner --contract generated_contracts/week3_extractions.yaml --data outputs/week3/extractions.jsonl --output validation_reports/clean_run.json
 ```
 
-Expected output:
+Key outputs:
 
-- [`validation_reports/thursday_baseline.json`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/validation_reports/thursday_baseline.json)
-- [`schema_snapshots/baselines.json`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/schema_snapshots/baselines.json) on first run
+- [`validation_reports/clean_run.json`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/validation_reports/clean_run.json)
+- [`schema_snapshots/baselines.json`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/schema_snapshots/baselines.json)
 
-Expected behavior:
+Expected result:
 
-- the report should show a clean baseline run
-- the current sample run produced 27 passed checks, 0 failed, 0 warned, 0 errored
+- clean data passes all checks
+- numeric baselines are established for drift detection
 
-### 4. Inject the canonical Week 3 confidence-scale violation
+### 3. Inject the canonical confidence-scale violation
 
 ```powershell
 python create_violation.py
 ```
 
-Expected output:
+Key output:
 
 - [`outputs/week3/extractions_violated.jsonl`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/outputs/week3/extractions_violated.jsonl)
 
-Expected behavior:
+What changes:
 
-- confidence values are transformed from `0.0-1.0` to `0-100`
+- `fact_confidence` values are transformed from `0.0-1.0` to `0-100`
 
-### 5. Run validation on violated Week 3 data
+### 4. Validate the violated dataset
 
 ```powershell
 python -m contracts.runner --contract generated_contracts/week3_extractions.yaml --data outputs/week3/extractions_violated.jsonl --output validation_reports/injected_violation.json
 ```
 
-Expected output:
+Key output:
 
 - [`validation_reports/injected_violation.json`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/validation_reports/injected_violation.json)
 
-Expected behavior:
+Expected result:
 
-- the `fact_confidence.range` check should fail
-- the `fact_confidence.drift` check should fail
-- the current sample run produced 30 total checks, 28 passed, 2 failed
+- `fact_confidence.range` fails
+- `fact_confidence.drift` fails
 
-### 6. Create a second Week 3 snapshot from violated data
-
-```powershell
-python -m contracts.generator --source outputs/week3/extractions_violated.jsonl --contract-id week3-document-refinery-extractions --lineage outputs/week4/lineage_snapshots.jsonl --output generated_contracts/
-```
-
-Expected behavior:
-
-- writes another timestamped file under [`schema_snapshots/week3-document-refinery-extractions`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/schema_snapshots/week3-document-refinery-extractions)
-- this provides multiple snapshots for later schema evolution comparisons
-
-### 7. Attribute the detected violation
+### 5. Attribute the failure
 
 ```powershell
 python -m contracts.attributor --violation validation_reports/injected_violation.json --lineage outputs/week4/lineage_snapshots.jsonl --contract generated_contracts/week3_extractions.yaml --output violation_log/violations.jsonl
 ```
 
-Expected output:
+Key output:
 
 - [`violation_log/violations.jsonl`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/violation_log/violations.jsonl)
 
-Expected behavior:
+Expected result:
 
-- reads FAIL results from the injected violation report
-- finds upstream candidate files from the lineage graph
-- attempts git attribution
-- writes one JSONL violation record per failed check
+- failed checks are converted into violation records
+- downstream impact is summarized through blast radius metadata
 
-## Quick Verification Commands
-
-Verify the shared models import:
+### 6. Run schema evolution analysis
 
 ```powershell
-python -c "from contracts.models import ColumnProfile, ValidationResult; print('models OK')"
+python -m contracts.schema_analyzer --contract-id week3-document-refinery-extractions --snapshots schema_snapshots/week3-document-refinery-extractions --output validation_reports/schema_evolution.json
 ```
 
-Verify the runner test file is syntactically valid:
+Key output:
+
+- [`validation_reports/schema_evolution.json`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/validation_reports/schema_evolution.json)
+
+### 7. Run AI extensions
 
 ```powershell
-python -m py_compile tests/test_phase3_runner.py
+python -m contracts.ai_extensions --mode all --extractions outputs/week3/extractions.jsonl --verdicts outputs/week2/verdicts.jsonl --output validation_reports/ai_extensions.json
 ```
 
-Verify the attributor test file is syntactically valid:
+Key outputs:
+
+- [`validation_reports/ai_extensions.json`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/validation_reports/ai_extensions.json)
+- [`validation_reports/ai_metrics.json`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/validation_reports/ai_metrics.json)
+
+### 8. Generate the final enforcer report
 
 ```powershell
-python -m py_compile tests/test_phase4_attributor.py
+python -m contracts.report_generator
 ```
 
-Run the current tests:
+Key output:
+
+- [`enforcer_report/report_data.json`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/enforcer_report/report_data.json)
+
+## Streamlit Demo
+
+Run the dashboard:
 
 ```powershell
-python -m pytest tests/test_phase3_runner.py -v
-python -m pytest tests/test_phase4_attributor.py -v
+streamlit run app.py
 ```
+
+The app walks through:
+
+- Overview metrics
+- Clean contract generation
+- Clean validation baseline
+- Injected breaking change
+- Failed validation
+- Attribution
+- Schema evolution
+- AI extensions
+- Final enforcer report
+- Safe demo scenarios
+
+## Current Highlights
+
+Based on the current sample outputs in this repository:
+
+- Health Score: `70/100`
+- Violations: `2`
+- Recommendations: `3`
+- Clean validation run: `30 passed`, `0 failed`
+- Violated validation run: `28 passed`, `2 failed`
+- Main breakage: `fact_confidence` scaled from `0.0-1.0` to `0-100`
 
 ## Notes
 
-- Use `python -m contracts.<module>` from the repo root when running package scripts. This avoids `ModuleNotFoundError: No module named 'contracts'`.
-- On PowerShell, prefer one-line commands or backticks for multiline commands. Bash-style trailing `\` will not work.
-- The current attribution flow may produce fallback blame-chain entries when the synthetic lineage file points to source paths that do not exist in local git history.
-- The current Week 5 flattening path profiles only scalar top-level event fields. Nested `payload` and `metadata` fields are not fully flattened yet.
+- Run package modules from the repository root using `python -m contracts.<module>`.
+- On PowerShell, use one-line commands or backticks for multiline commands. Bash-style trailing `\` will not work.
+- Attribution may fall back to placeholder blame entries when lineage points to paths not present in local git history.
+- The schema evolution view can show `0` changes even when validation fails, because data values may change without the contract snapshot changing.
 
-## Current Outputs
+## Documentation
 
-Key generated artifacts already present in this repo:
+- [`README.md`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/README.md)
+- [`DESIGN.md`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/DESIGN.md)
 
-- [`generated_contracts/week3_extractions.yaml`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/generated_contracts/week3_extractions.yaml)
-- [`generated_contracts/week3_extractions_dbt.yml`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/generated_contracts/week3_extractions_dbt.yml)
-- [`generated_contracts/week5_records.yaml`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/generated_contracts/week5_records.yaml)
-- [`generated_contracts/week5_records_dbt.yml`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/generated_contracts/week5_records_dbt.yml)
-- [`validation_reports/thursday_baseline.json`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/validation_reports/thursday_baseline.json)
-- [`validation_reports/injected_violation.json`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/validation_reports/injected_violation.json)
-- [`violation_log/violations.jsonl`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/violation_log/violations.jsonl)
+## Contact
 
-## Next Steps
+Built and maintained by `abduvaio`.
 
-- Implement `contracts/schema_analyzer.py`
-- Implement `contracts/ai_extensions.py`
-- Implement `contracts/report_generator.py`
-- Expand Week 5 flattening and validation coverage for nested event payloads
+Let's connect and make the project better.

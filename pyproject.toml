@@ -15,4 +15,5 @@ dependencies = [
     "gitpython",
     "soda-core",
     "python-dotenv",
+    "streamlit",
 ]
