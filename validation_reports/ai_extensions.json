@@ -1,0 +1,36 @@
+{
+  "run_id": "7dd1b561-b65a-4b0c-b952-99854e57bca0",
+  "run_timestamp": "2026-04-03T14:10:44.322508+00:00",
+  "mode": "all",
+  "checks": {
+    "embedding_drift": {
+      "status": "BASELINE_SET",
+      "drift_score": 0.0,
+      "threshold": 0.15,
+      "baseline_path": "schema_snapshots/embedding_baselines.npz",
+      "message": "First run \u2014 baseline centroid saved. Run again to compute drift score."
+    },
+    "prompt_input_validation": {
+      "status": "PASS",
+      "total_records": 60,
+      "valid_count": 60,
+      "quarantined_count": 0,
+      "quarantine_path": "outputs/quarantine/quarantine.jsonl"
+    },
+    "llm_output_violation_rate": {
+      "run_date": "2026-04-03",
+      "total_outputs": 30,
+      "schema_violations": 0,
+      "violation_rate": 0.0,
+      "baseline_violation_rate": null,
+      "trend": "unknown",
+      "status": "PASS",
+      "warn_threshold": 0.02,
+      "valid_verdicts": [
+        "PASS",
+        "WARN",
+        "FAIL"
+      ]
+    }
+  }
+}

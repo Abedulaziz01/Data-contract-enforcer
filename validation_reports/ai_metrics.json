@@ -1,0 +1,15 @@
+{
+  "run_date": "2026-04-03",
+  "total_outputs": 30,
+  "schema_violations": 0,
+  "violation_rate": 0.0,
+  "baseline_violation_rate": null,
+  "trend": "unknown",
+  "status": "PASS",
+  "warn_threshold": 0.02,
+  "valid_verdicts": [
+    "PASS",
+    "WARN",
+    "FAIL"
+  ]
+}
