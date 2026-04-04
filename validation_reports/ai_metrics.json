@@ -1,5 +1,5 @@
 {
-  "run_date": "2026-04-03",
+  "run_date": "2026-04-04",
   "total_outputs": 30,
   "schema_violations": 0,
   "violation_rate": 0.0,
@@ -9,7 +9,7 @@
   "warn_threshold": 0.02,
   "valid_verdicts": [
     "PASS",
-    "WARN",
-    "FAIL"
+    "FAIL",
+    "WARN"
   ]
 }
