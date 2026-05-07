@@ -25,26 +25,26 @@ def classify_change(
 ) -> Tuple[str, str, str]:
     """
     Classify a schema change.
-    Returns (compatibility, severity, reason).
+    Returns (compatibility, reason, severity).
     """
     if old_clause is None and new_clause is not None:
         if new_clause.get("required", False):
             return (
                 "BREAKING",
-                "HIGH",
                 f"Add non-nullable column '{field_name}' - coordinate with all producers",
+                "HIGH",
             )
         return (
             "COMPATIBLE",
-            "LOW",
             f"Add nullable column '{field_name}' - downstream consumers can ignore",
+            "LOW",
         )
 
     if old_clause is not None and new_clause is None:
         return (
             "BREAKING",
-            "HIGH",
             f"Remove column '{field_name}' - 2-sprint deprecation period mandatory",
+            "HIGH",
         )
 
     old_type = old_clause.get("type")
@@ -58,8 +58,8 @@ def classify_change(
         if (old_type, new_type) in widening_pairs:
             return (
                 "COMPATIBLE",
-                "LOW",
                 f"Type widening {old_type} -> {new_type} - validate no precision loss",
+                "LOW",
             )
         if (
             old_type == "number"
@@ -71,13 +71,13 @@ def classify_change(
         ):
             return (
                 "BREAKING",
-                "CRITICAL",
                 "Narrow type and scale change number 0.0-1.0 -> integer 0-100 - immediate rollback recommended",
+                "CRITICAL",
             )
         return (
             "BREAKING",
-            "HIGH",
             f"Type change {old_type} -> {new_type} - migration plan + rollback mandatory",
+            "HIGH",
         )
 
     old_max = old_clause.get("maximum")
@@ -86,10 +86,10 @@ def classify_change(
     new_min = new_clause.get("minimum")
 
     if old_max != new_max and old_max is not None:
-        return ("BREAKING", "CRITICAL", f"Range change: maximum {old_max} -> {new_max}")
+        return ("BREAKING", f"Range change: maximum {old_max} -> {new_max}", "CRITICAL")
 
     if old_min != new_min and old_min is not None:
-        return ("BREAKING", "CRITICAL", f"Range change: minimum {old_min} -> {new_min}")
+        return ("BREAKING", f"Range change: minimum {old_min} -> {new_min}", "CRITICAL")
 
     old_enum = set(old_clause.get("enum", []))
     new_enum = set(new_clause.get("enum", []))
@@ -99,14 +99,14 @@ def classify_change(
         if removed:
             return (
                 "BREAKING",
-                "HIGH",
                 f"Enum values removed: {sorted(removed)} - treat as breaking change",
+                "HIGH",
             )
         if added:
             return (
                 "COMPATIBLE",
-                "LOW",
                 f"Enum values added: {sorted(added)} - notify all consumers",
+                "LOW",
             )
 
     old_req = old_clause.get("required", False)
@@ -114,18 +114,18 @@ def classify_change(
     if not old_req and new_req:
         return (
             "BREAKING",
-            "HIGH",
             f"Column '{field_name}' changed to required - coordinate with all producers",
+            "HIGH",
         )
 
     if old_clause.get("format") != new_clause.get("format"):
         return (
             "BREAKING",
-            "HIGH",
             f"Format changed: {old_clause.get('format')} -> {new_clause.get('format')}",
+            "HIGH",
         )
 
-    return ("COMPATIBLE", "LOW", "No material change")
+    return ("COMPATIBLE", "No material change", "LOW")
 
 
 def load_snapshots(contract_id: str, since: Optional[str] = None) -> List[Dict]:
@@ -329,7 +329,7 @@ def main():
         if old_clause == new_clause:
             continue
 
-        compatibility, severity, reason = classify_change(field, old_clause, new_clause)
+        compatibility, reason, severity = classify_change(field, old_clause, new_clause)
         change_record = {
             "field": field,
             "compatibility": compatibility,

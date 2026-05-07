@@ -212,10 +212,23 @@ Key output:
 
 ## Streamlit Demo
 
-Run the dashboard:
+Run the dashboard from the repository root:
 
 ```powershell
-streamlit run app.py
+.\.venv\Scripts\Activate.ps1
+python -m streamlit run app.py
+```
+
+Streamlit will usually open the app automatically and print a local link like:
+
+```text
+http://localhost:8501
+```
+
+If port `8501` is already busy, start it on another port:
+
+```powershell
+python -m streamlit run app.py --server.port 8502
 ```
 
 The app walks through:

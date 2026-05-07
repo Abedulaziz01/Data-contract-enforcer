@@ -281,7 +281,8 @@ def build_app():
     )
 
     st.sidebar.markdown("### Run locally")
-    st.sidebar.code("streamlit run app.py", language="bash")
+    st.sidebar.code("python -m streamlit run app.py", language="bash")
+    st.sidebar.caption("Default local URL: http://localhost:8501")
     st.sidebar.markdown("### Key outputs")
     st.sidebar.caption("The dashboard reads from generated YAML/JSON/JSONL files already present in this repo.")
 

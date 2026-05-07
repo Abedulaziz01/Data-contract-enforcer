@@ -69,6 +69,12 @@ def deterministic_demo_embeddings(texts: List[str], dimension: int = 1536) -> np
     return np.array(vectors, dtype=np.float32)
 
 
+def fallback_demo_embeddings(texts: List[str], reason: str) -> np.ndarray:
+    """Use deterministic local vectors when network embeddings are unavailable."""
+    print(f"      {reason} - using deterministic local vectors (demo mode)")
+    return deterministic_demo_embeddings(texts)
+
+
 def embed_sample(
     texts: List[str],
     n: int = 200,
@@ -85,29 +91,33 @@ def embed_sample(
     sample = texts[:n] if len(texts) > n else texts
 
     if openrouter_api_key:
-        from openai import OpenAI
+        try:
+            from openai import OpenAI
 
-        openrouter_model = os.getenv("OPENROUTER_EMBEDDING_MODEL", model)
-        client = OpenAI(
-            api_key=openrouter_api_key,
-            base_url="https://openrouter.ai/api/v1",
-        )
-        response = client.embeddings.create(input=sample, model=openrouter_model)
-        return np.array([item.embedding for item in response.data], dtype=np.float32)
+            openrouter_model = os.getenv("OPENROUTER_EMBEDDING_MODEL", model)
+            client = OpenAI(
+                api_key=openrouter_api_key,
+                base_url="https://openrouter.ai/api/v1",
+            )
+            response = client.embeddings.create(input=sample, model=openrouter_model)
+            return np.array([item.embedding for item in response.data], dtype=np.float32)
+        except Exception as exc:
+            return fallback_demo_embeddings(sample, f"OpenRouter embeddings unavailable ({exc})")
 
     if openai_api_key and openai_api_key != "sk-PLACEHOLDER":
-        from openai import OpenAI
+        try:
+            from openai import OpenAI
 
-        client = OpenAI(api_key=openai_api_key)
-        response = client.embeddings.create(input=sample, model=model)
-        return np.array([item.embedding for item in response.data], dtype=np.float32)
+            client = OpenAI(api_key=openai_api_key)
+            response = client.embeddings.create(input=sample, model=model)
+            return np.array([item.embedding for item in response.data], dtype=np.float32)
+        except Exception as exc:
+            return fallback_demo_embeddings(sample, f"OpenAI embeddings unavailable ({exc})")
 
     if groq_api_key:
-        print("      GROQ_API_KEY detected - using deterministic local vectors (demo mode)")
-        return deterministic_demo_embeddings(sample)
+        return fallback_demo_embeddings(sample, "GROQ_API_KEY detected")
 
-    print("      No embeddings API key configured - using deterministic local vectors (demo mode)")
-    return deterministic_demo_embeddings(sample)
+    return fallback_demo_embeddings(sample, "No embeddings API key configured")
 
 
 def cosine_distance(a: np.ndarray, b: np.ndarray) -> float:
