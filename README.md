@@ -231,6 +231,12 @@ If port `8501` is already busy, start it on another port:
 python -m streamlit run app.py --server.port 8502
 ```
 
+Direct command:
+
+```powershell
+python -m streamlit run app.py --server.port 8502
+```
+
 The app walks through:
 
 - Overview metrics
