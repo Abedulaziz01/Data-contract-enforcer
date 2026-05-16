@@ -271,11 +271,6 @@ Based on the current sample outputs in this repository:
   - The schema evolution view is not a comprehensive way to detect schema drift, but it can help identify potential issues.
   - It's important to review the schema evolution report and understand the implications of the changes.
 
-## Documentation
-
-- [`README.md`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/README.md)
-- [`DESIGN.md`](/c:/Users/user/Desktop/mll/week7/Data-contract-enforcer/DESIGN.md)
-
 ## Contact
 
 Built and maintained by `abduvaio`.
