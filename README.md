@@ -267,6 +267,9 @@ Based on the current sample outputs in this repository:
 - On PowerShell, use one-line commands or backticks for multiline commands. Bash-style trailing `\` will not work.
 - Attribution may fall back to placeholder blame entries when lineage points to paths not present in local git history.
 - The schema evolution view can show `0` changes even when validation fails, because data values may change without the contract snapshot changing.
+  - This is because the schema evolution view is based on the contract snapshot, not the data values.
+  - The schema evolution view is not a comprehensive way to detect schema drift, but it can help identify potential issues.
+  - It's important to review the schema evolution report and understand the implications of the changes.
 
 ## Documentation
 
