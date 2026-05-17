@@ -157,5 +157,3 @@ The implementation is optimized for the Week 7 project rubric:
 
 - it demonstrates contract generation from real-looking data
 - it proves validation on clean and broken snapshots
-- it records machine-readable failures
-- it shows a lineage-driven attribution path
